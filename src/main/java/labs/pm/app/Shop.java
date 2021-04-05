@@ -17,9 +17,10 @@ public class Shop {
         ProductManager pm = new ProductManager(Locale.US);
         System.out.println(ProductManager.getSupportedFormat());
         pm.changeLocale("ru-Ru");
-        pm.printProductReport(42);
+        pm.parseProduct("F,111,Cookie,2.99,5,2022-10-11");
         pm.createProduct(101, "Tea", BigDecimal.valueOf(1.99), NOT_RATED);
         pm.reviewProduct(101, FOUR_STAR, "Nice, hot cup of tre!");
+        pm.parseReview("101,31,Nice, hot cup of tea!");
         pm.reviewProduct(101, FIVE_STAR, "Wow!");
         pm.reviewProduct(101, THREE_STAR, "Good tea!");
         pm.reviewProduct(101, FIVE_STAR, "Nice cup of tea!");
@@ -37,6 +38,7 @@ public class Shop {
         pm.printProductReport(101);
         pm.printProductReport(102);
         pm.printProductReport(103);
+        pm.printProductReport(111);
         Comparator<Product> priceSorter = (x,y)->(x.getPrice().compareTo(y.getPrice()));
         Comparator<Product> ratingSorter = (x,y)->(y.getRating().ordinal()- x.getRating().ordinal());
         Predicate<Product> filter = x-> x.getPrice().floatValue()>2;

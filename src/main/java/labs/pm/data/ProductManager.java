@@ -3,8 +3,10 @@ package labs.pm.data;
 import java.math.BigDecimal;
 import java.text.MessageFormat;
 import java.text.NumberFormat;
+import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.format.FormatStyle;
 import java.util.*;
 import java.util.function.Predicate;
@@ -24,6 +26,8 @@ public class ProductManager {
     );
     private Logger logger = Logger.getLogger(ProductManager.class.getName());
     private ResourceBundle config = ResourceBundle.getBundle("config");
+    private MessageFormat productFormat = new MessageFormat(config.getString("product.data.format"));
+    private MessageFormat reviewFormat = new MessageFormat(config.getString("review.data.format"));
 
     public ProductManager(Locale locale) {
         this(locale.toLanguageTag());
@@ -67,11 +71,6 @@ public class ProductManager {
 
         products.remove(product);
         reviews.add(new Review(rating, comments));
-//        int sum = 0;
-//        for (Review review : reviews) {
-//            sum += review.getRating().ordinal();
-//        }
-//        product = product.applyRating(Math.round((float) sum / reviews.size()));
         product = product.applyRating(
                 (int) Math.round(reviews.stream()
                         .mapToInt(x -> x.getRating().ordinal())
@@ -81,20 +80,43 @@ public class ProductManager {
         return product;
     }
 
+    public void parseReview(String text) {
+        try {
+            Object[] values = reviewFormat.parse(text);
+            reviewProduct(Integer.parseInt(String.valueOf(values[0])),
+                    Rateable.convert(Integer.parseInt(String.valueOf(values[1]))),
+                    String.valueOf(values[2]));
+        } catch (ParseException | NumberFormatException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void parseProduct(String text) {
+        try {
+            Object[] values = productFormat.parse(text);
+            int id = Integer.parseInt((String) values[1]);
+            String name = (String) values[2];
+            BigDecimal price = BigDecimal.valueOf(Double.parseDouble((String) values[3]));
+            Rating rating = Rateable.convert(Integer.parseInt((String) values[4]));
+            switch ((String) values[0]) {
+                case "D":
+                    createProduct(id,name,price,rating);
+                    break;
+                case "F":
+                    LocalDate bestBefore = LocalDate.parse((String) values[5]);
+                    createProduct(id,name,price,rating,bestBefore);
+                    break;
+            }
+        } catch (ParseException | NumberFormatException | DateTimeParseException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void printProductReport(Product product) {
         List<Review> reviews = products.get(product);
         StringBuilder txt = new StringBuilder();
         txt.append(formatter.formatProduct(product));
         txt.append("\n");
-//        Collections.sort(reviews);
-//        for (var review : reviews) {
-//            txt.append(formatter.formatReview(review));
-//            txt.append("\n");
-//        }
-//        if (reviews.isEmpty()) {
-//            txt.append(formatter.getText("no.reviews"));
-//            txt.append("\n");
-//        }
         if (reviews.isEmpty()) {
             txt.append(formatter.getText("no.reviews") + "\n");
         } else {
@@ -114,13 +136,7 @@ public class ProductManager {
     }
 
     public void printProducts(Predicate<Product> filter, Comparator<Product> sorter) {
-//        List<Product> productList = new ArrayList<>(products.keySet());
-//        productList.sort(sorter);
         StringBuilder txt = new StringBuilder();
-//        for (var product : productList) {
-//            txt.append(formatter.formatProduct(product));
-//            txt.append("\n");
-//        }
         txt.append(
                 products.keySet().stream()
                         .filter(filter)
@@ -132,14 +148,6 @@ public class ProductManager {
     }
 
     public Product findProduct(int id) throws ProductManagerException {
-//        Product result = null;
-//        for (var product : products.keySet()) {
-//            if (product.getId() == id) {
-//                result = product;
-//                break;
-//            }
-//        }
-//        return result;
         return products.keySet()
                 .stream()
                 .filter(product -> product.getId() == id)
