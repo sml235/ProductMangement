@@ -1,8 +1,6 @@
 package labs.pm.data;
 
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
+import java.io.*;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -11,6 +9,7 @@ import java.nio.file.StandardOpenOption;
 import java.text.MessageFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -91,26 +90,60 @@ public class ProductManager {
         return product;
     }
 
+    private void dumpData() {
+        try {
+            if (Files.notExists(tempFolder)) {
+                Files.createDirectory(tempFolder); //why not -ies?
+            }
+            Path tempFile = tempFolder.resolve(
+                    MessageFormat.format(config.getString("temp.file"), Instant.now()));
+            try (ObjectOutputStream out = new ObjectOutputStream(
+                    Files.newOutputStream(tempFile, StandardOpenOption.CREATE))) {
+                out.writeObject(products);
+                products = new HashMap<>();
+            }
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error dump  " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void restoreData() {
+        try {
+            Path tempFile = Files.list(tempFolder)
+                    .filter(path -> path.getFileName().toString().endsWith("tmp"))
+                    .findFirst()
+                    .orElseThrow();
+            try (ObjectInputStream in = new ObjectInputStream(
+                    Files.newInputStream(tempFile, StandardOpenOption.DELETE_ON_CLOSE))) {
+                products = (HashMap) in.readObject();
+            }
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error dump  " + e.getMessage());
+        }
+
+    }
+
     private void loadAllData() {
         try {
             products = Files.list(dataFolder)
                     .filter(file -> file.getFileName().toString().startsWith("product"))
                     .map(file -> loadProduct(file))
-                    .filter(product -> product!=null)
+                    .filter(product -> product != null)
                     .collect(Collectors.toMap(product -> product, product -> loadReviews(product)));
         } catch (IOException e) {
-            logger.log(Level.SEVERE,"Error load  " + e.getMessage());
+            logger.log(Level.SEVERE, "Error load  " + e.getMessage());
         }
     }
 
-    private Product loadProduct(Path file){
+    private Product loadProduct(Path file) {
         Product product = null;
         try {
-            product = parseProduct(Files.lines(dataFolder.resolve(file),Charset.forName("UTF-8"))
+            product = parseProduct(Files.lines(dataFolder.resolve(file), Charset.forName("UTF-8"))
                     .findFirst()
                     .orElseThrow());
         } catch (IOException e) {
-            logger.log(Level.WARNING,"Error load product " + e.getMessage());
+            logger.log(Level.WARNING, "Error load product " + e.getMessage());
         }
         return product;
     }
@@ -127,7 +160,7 @@ public class ProductManager {
                         .filter(review -> review != null)
                         .collect(Collectors.toList());
             } catch (IOException e) {
-                logger.log(Level.WARNING,"Error load reviews "+ e.getMessage());
+                logger.log(Level.WARNING, "Error load reviews " + e.getMessage());
             }
         }
         return reviews;
